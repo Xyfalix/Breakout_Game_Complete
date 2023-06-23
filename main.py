@@ -3,6 +3,7 @@ from sys import exit
 from paddle import Paddle
 from blocks import Blocks
 from ball import Ball
+import math
 
 
 def create_blocks(start_x_pos, start_y_pos, cols):
@@ -57,16 +58,58 @@ def collision_checker():
 
     # ball collision with player
     paddle_hit = pygame.sprite.spritecollide(ball.sprite, paddle, False)
+    # define an x constant that changes ball_x_direction when multiplied with collision_x
+    x_constant = 0.2
+    ball_speed_squared = ball_x_direction ** 2 + ball_y_direction ** 2
+    print(f'ball_speed_squared is {ball_speed_squared}')
     if paddle_hit:
-        if ball.sprite.rect.bottom >= paddle.sprite.rect.top:
-            # ball collided with top of paddle:
-            ball_y_direction *= -1
-        if ball.sprite.rect.left <= paddle.sprite.rect.right:
-            # left side of ball collided with right side of paddle
-            ball_x_direction *= -1
-        if ball.sprite.rect.right >= paddle.sprite.rect.left:
-            # right side of ball collided with left side of paddle
-            ball_x_direction *= -1
+        if ball_x_direction < 0 and ball.sprite.rect.centerx - paddle.sprite.rect.centerx >= 0:
+            # ball is traveling from right to left and lands on the right half of the paddle
+            # bounce ball up and rightwards
+            collision_x = ball.sprite.rect.centerx - paddle.sprite.rect.centerx
+            collision_percentage = collision_x / (paddle.sprite.rect.width / 2)
+            ball_x_direction += (-2 * ball_x_direction) + (x_constant * collision_percentage)
+            print(f'ball_x_direction is {ball_x_direction}')
+            ball_y_direction = -math.sqrt(ball_speed_squared - (ball_x_direction ** 2))
+
+        elif ball_x_direction < 0 and ball.sprite.rect.centerx - paddle.sprite.rect.centerx < 0:
+            # ball is traveling from right to left and lands on the left half of the paddle
+            # bounce ball up and leftwards
+            collision_x = paddle.sprite.rect.centerx - ball.sprite.rect.centerx
+            collision_percentage = collision_x / (paddle.sprite.rect.width / 2)
+            ball_x_direction -= x_constant * collision_percentage
+            print(f'ball_x_direction is {ball_x_direction}')
+            ball_y_direction = math.sqrt(ball_speed_squared - (ball_x_direction ** 2))
+
+        elif ball_x_direction > 0 and ball.sprite.rect.centerx - paddle.sprite.rect.centerx >= 0:
+            # ball is traveling from left to right and lands on the left half of the paddle
+            # bounce ball up and leftwards
+            collision_x = ball.sprite.rect.centerx - paddle.sprite.rect.centerx
+            collision_percentage = collision_x / (paddle.sprite.rect.width / 2)
+            ball_x_direction += (-2 * ball_x_direction) - (x_constant * collision_percentage)
+            print(f'ball_x_direction is {ball_x_direction}')
+            ball_y_direction = math.sqrt(ball_speed_squared - (ball_x_direction ** 2))
+
+        elif ball_x_direction > 0 and ball.sprite.rect.centerx - paddle.sprite.rect.centerx < 0:
+            # ball is traveling from left to right and lands on the right half of the paddle
+            # bounce ball up and rightwards
+            collision_x = paddle.sprite.rect.centerx - ball.sprite.rect.centerx
+            collision_percentage = collision_x / (paddle.sprite.rect.width / 2)
+            ball_x_direction += x_constant * collision_percentage
+            print(f'ball_x_direction is {ball_x_direction}')
+            ball_y_direction = math.sqrt(ball_speed_squared - (ball_x_direction ** 2))
+
+
+
+        # if ball.sprite.rect.bottom >= paddle.sprite.rect.top:
+        #     # ball collided with top of paddle:
+        #     ball_y_direction *= -1
+        # if ball.sprite.rect.left <= paddle.sprite.rect.right:
+        #     # left side of ball collided with right side of paddle
+        #     ball_x_direction *= -1
+        # if ball.sprite.rect.right >= paddle.sprite.rect.left:
+        #     # right side of ball collided with left side of paddle
+        #     ball_x_direction *= -1
 
 
 def display_score():
@@ -85,12 +128,16 @@ def display_lives():
 def check_lives():
     global lives
     global game_active
+    global ball_x_direction
+    global ball_y_direction
     if ball.sprite.rect.bottom >= screen_height:
         # bottom of the ball has touched the bottom part of the screen, player loses a life
         lives -= 1
         # respawn ball
         ball.sprite.rect.x = paddle.sprite.rect.centerx  # find current position of paddle and spawn ball at mid-point
         ball.sprite.rect.y = screen_height - 50
+        ball_x_direction = -3
+        ball_y_direction = -3
         if lives <= 0:
             game_active = False
 
