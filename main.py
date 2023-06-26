@@ -9,7 +9,7 @@ import math
 def create_blocks(start_x_pos, start_y_pos, cols):
     block_colors = ['red', 'red', 'orange', 'orange', 'green', 'green', 'yellow', 'yellow']
     block_width = 80
-    block_height = 20
+    block_height = 40
     row_spacing = block_height + 10
     col_spacing = block_width + 10
     for color_index, color in enumerate(block_colors):
@@ -23,11 +23,17 @@ def collision_checker():
     global score
     global ball_x_direction
     global ball_y_direction
+    global doubled_speed
     # ball collision with blocks
     blocks_hit = pygame.sprite.spritecollide(ball.sprite, blocks, True)
     if blocks_hit:
         for block in blocks_hit:
             score += block.value
+            # double the ball speed if a red or orange block is hit for the first time
+            if not doubled_speed and (block.color == 'orange' or block.color == 'red'):
+                ball_x_direction *= 2
+                ball_y_direction *= 2
+                doubled_speed = True
         if ball.sprite.rect.bottom >= block.rect.top:
             # ball collided with top side of block
             ball_y_direction *= -1
@@ -35,17 +41,27 @@ def collision_checker():
             # ball collided with bottom side of block
             ball_y_direction *= -1
         elif ball.sprite.rect.right >= block.rect.left:
-            # ball collided with left side of block
+            # ball is moving from left to right and collides with left side of block
             ball_x_direction *= -1
         elif ball.sprite.rect.left <= block.rect.right:
-            # ball collided with right side of block
-            ball_x_direction *= - 1
-        # if all blocks in the group have been destroyed, generate a fresh set of aliens
-        if not blocks:
-            create_blocks(start_x_pos=10, start_y_pos=60, cols=11)
-            alien_direction = 1
+            # ball is moving from right to left and collides with right side of block
+            ball_x_direction *= -1
 
-    # ball collision with wall
+        # if all blocks in the group have been destroyed, generate a fresh set of blocks
+        if not blocks:
+            # respawn ball
+            # find current position of paddle and spawn ball at mid-point of paddle
+            ball.sprite.rect.x = paddle.sprite.rect.centerx
+            ball.sprite.rect.y = screen_height - 50
+            # reset ball speed
+            ball_x_direction = -6
+            ball_y_direction = -6
+            # reset speed doubling check
+            doubled_speed = False
+            # create a new set of blocks
+            create_blocks(start_x_pos=10, start_y_pos=60, cols=11)
+
+    # ball collision behaviour with wall
     if ball.sprite.rect.left <= 0:
         # left side of ball collided with left wall
         ball_x_direction *= -1
@@ -56,60 +72,57 @@ def collision_checker():
         # top of ball collided with top wall
         ball_y_direction *= -1
 
-    # ball collision with player
+    # ball collision with paddle
     paddle_hit = pygame.sprite.spritecollide(ball.sprite, paddle, False)
-    # define an x constant that changes ball_x_direction when multiplied with collision_x
-    x_constant = 0.2
     ball_speed_squared = ball_x_direction ** 2 + ball_y_direction ** 2
-    print(f'ball_speed_squared is {ball_speed_squared}')
     if paddle_hit:
-        if ball_x_direction < 0 and ball.sprite.rect.centerx - paddle.sprite.rect.centerx >= 0:
+        if ball_x_direction < 0 and (ball.sprite.rect.centerx - paddle.sprite.rect.centerx > 0):
             # ball is traveling from right to left and lands on the right half of the paddle
             # bounce ball up and rightwards
             collision_x = ball.sprite.rect.centerx - paddle.sprite.rect.centerx
-            collision_percentage = collision_x / (paddle.sprite.rect.width / 2)
-            ball_x_direction += (-2 * ball_x_direction) + (x_constant * collision_percentage)
-            print(f'ball_x_direction is {ball_x_direction}')
-            ball_y_direction = -math.sqrt(ball_speed_squared - (ball_x_direction ** 2))
+            # set collision_percentage to be positive, direction vectors resolved below
+            collision_percentage = abs(collision_x / (paddle.sprite.rect.width / 2))
+            # set collision percentage limit to 90% so that ball does not get stuck in the x-axis after bouncing
+            if collision_percentage > 0.9:
+                collision_percentage = 0.9
+            ball_x_direction = collision_percentage * math.sqrt(ball_speed_squared)
+            ball_y_direction = -math.sqrt(ball_speed_squared - ball_x_direction ** 2)
 
-        elif ball_x_direction < 0 and ball.sprite.rect.centerx - paddle.sprite.rect.centerx < 0:
+        elif ball_x_direction < 0 and (ball.sprite.rect.centerx - paddle.sprite.rect.centerx <= 0):
             # ball is traveling from right to left and lands on the left half of the paddle
             # bounce ball up and leftwards
             collision_x = paddle.sprite.rect.centerx - ball.sprite.rect.centerx
-            collision_percentage = collision_x / (paddle.sprite.rect.width / 2)
-            ball_x_direction -= x_constant * collision_percentage
-            print(f'ball_x_direction is {ball_x_direction}')
-            ball_y_direction = math.sqrt(ball_speed_squared - (ball_x_direction ** 2))
+            # set collision_percentage to be positive, direction vectors resolved below
+            collision_percentage = abs(collision_x / (paddle.sprite.rect.width / 2))
+            # set collision percentage limit to 90% so that ball does not get stuck in the x-axis after bouncing
+            if collision_percentage > 0.9:
+                collision_percentage = 0.9
+            ball_x_direction = -collision_percentage * math.sqrt(ball_speed_squared)
+            ball_y_direction = -math.sqrt(ball_speed_squared - ball_x_direction ** 2)
 
-        elif ball_x_direction > 0 and ball.sprite.rect.centerx - paddle.sprite.rect.centerx >= 0:
+        elif ball_x_direction > 0 and (ball.sprite.rect.centerx - paddle.sprite.rect.centerx <= 0):
             # ball is traveling from left to right and lands on the left half of the paddle
             # bounce ball up and leftwards
             collision_x = ball.sprite.rect.centerx - paddle.sprite.rect.centerx
-            collision_percentage = collision_x / (paddle.sprite.rect.width / 2)
-            ball_x_direction += (-2 * ball_x_direction) - (x_constant * collision_percentage)
-            print(f'ball_x_direction is {ball_x_direction}')
-            ball_y_direction = math.sqrt(ball_speed_squared - (ball_x_direction ** 2))
+            # set collision_percentage to be positive, direction vectors resolved below
+            collision_percentage = abs(collision_x / (paddle.sprite.rect.width / 2))
+            # set collision percentage limit to 90% so that ball does not get stuck in the x-axis after bouncing
+            if collision_percentage > 0.9:
+                collision_percentage = 0.9
+            ball_x_direction = -collision_percentage * math.sqrt(ball_speed_squared)
+            ball_y_direction = -math.sqrt(ball_speed_squared - ball_x_direction ** 2)
 
-        elif ball_x_direction > 0 and ball.sprite.rect.centerx - paddle.sprite.rect.centerx < 0:
+        elif ball_x_direction > 0 and (ball.sprite.rect.centerx - paddle.sprite.rect.centerx > 0):
             # ball is traveling from left to right and lands on the right half of the paddle
             # bounce ball up and rightwards
             collision_x = paddle.sprite.rect.centerx - ball.sprite.rect.centerx
-            collision_percentage = collision_x / (paddle.sprite.rect.width / 2)
-            ball_x_direction += x_constant * collision_percentage
-            print(f'ball_x_direction is {ball_x_direction}')
-            ball_y_direction = math.sqrt(ball_speed_squared - (ball_x_direction ** 2))
-
-
-
-        # if ball.sprite.rect.bottom >= paddle.sprite.rect.top:
-        #     # ball collided with top of paddle:
-        #     ball_y_direction *= -1
-        # if ball.sprite.rect.left <= paddle.sprite.rect.right:
-        #     # left side of ball collided with right side of paddle
-        #     ball_x_direction *= -1
-        # if ball.sprite.rect.right >= paddle.sprite.rect.left:
-        #     # right side of ball collided with left side of paddle
-        #     ball_x_direction *= -1
+            # set collision_percentage to be positive, direction vectors resolved below
+            collision_percentage = abs(collision_x / (paddle.sprite.rect.width / 2))
+            # set collision percentage limit to 90% so that ball does not get stuck in the x-axis after bouncing
+            if collision_percentage > 0.9:
+                collision_percentage = 0.9
+            ball_x_direction = collision_percentage * math.sqrt(ball_speed_squared)
+            ball_y_direction = -math.sqrt(ball_speed_squared - ball_x_direction ** 2)
 
 
 def display_score():
@@ -130,27 +143,32 @@ def check_lives():
     global game_active
     global ball_x_direction
     global ball_y_direction
+    global doubled_speed
     if ball.sprite.rect.bottom >= screen_height:
         # bottom of the ball has touched the bottom part of the screen, player loses a life
         lives -= 1
+
         # respawn ball
         ball.sprite.rect.x = paddle.sprite.rect.centerx  # find current position of paddle and spawn ball at mid-point
         ball.sprite.rect.y = screen_height - 50
-        ball_x_direction = -3
-        ball_y_direction = -3
+        ball_x_direction = -6
+        ball_y_direction = -6
+
+        # reset doubled speed back to False after ball is respawned
+        doubled_speed = False
         if lives <= 0:
             game_active = False
 
+
 pygame.init()
 screen_width = 1000
-screen_height = 500
+screen_height = 800
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption('Breakout')
 clock = pygame.time.Clock()
 test_font = pygame.font.Font('font/Pixeled.ttf', 20)
 score = 0
-
-
+doubled_speed = False
 game_active = True
 
 # player group
@@ -165,10 +183,10 @@ create_blocks(start_x_pos=10, start_y_pos=60, cols=11)
 # ball group
 ball = pygame.sprite.GroupSingle()
 ball.add(Ball(x_pos=screen_width/2, y_pos=screen_height-50, radius=10, color='white'))
-ball_x_direction = -3
-ball_y_direction = -3
+ball_x_direction = -6
+ball_y_direction = -6
 
-#life setup
+# life setup
 lives = 3
 live_surf = ball.sprite.image
 lives_x_start_pos = screen_width - live_surf.get_size()[0] * lives - 60
@@ -194,7 +212,7 @@ while True:
         # Fill the screen with a black background
         screen.fill((0, 0, 0))
 
-        # draw player object
+        # draw paddle object
         paddle.draw(screen)
         paddle.update()
 
@@ -230,8 +248,10 @@ while True:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left mouse button is clicked
             mouse_pos = pygame.mouse.get_pos()
             if play_again_text_rect.collidepoint(mouse_pos):
+
                 # "PLAY AGAIN" button is clicked
                 game_active = True
+
                 # reset score
                 score = 0
 
@@ -254,8 +274,11 @@ while True:
                 lives = 3
 
                 # reset ball speed and direction
-                ball_x_direction = -3
-                ball_y_direction = -3
+                ball_x_direction = -6
+                ball_y_direction = -6
+
+                # reset ball speed doubling check
+                doubled_speed = False
 
     pygame.display.update()
     clock.tick(60)

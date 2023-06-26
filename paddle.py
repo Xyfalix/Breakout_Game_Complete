@@ -15,9 +15,9 @@ class Paddle(pygame.sprite.Sprite):
     def movement(self):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT] and self.rect.left >= 10:
-            self.rect.x -= 10
+            self.rect.x -= 15
         elif keys[pygame.K_RIGHT] and self.rect.right <= self.max_width - 10:
-            self.rect.x += 10
+            self.rect.x += 15
 
     def update(self):
         self.movement()
